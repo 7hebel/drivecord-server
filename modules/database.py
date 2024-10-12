@@ -36,17 +36,15 @@ from modules.paths import Path
 from modules import timestamp
 from modules.logs import Log
 
-from typing import Any, List, Iterable, Type
+from typing import Any, List, Iterable, Type, Generic, TypeVar, TYPE_CHECKING
 from dataclasses import dataclass, asdict
 import hashlib
 import uuid
 
+if TYPE_CHECKING:
+    from dataclasses import _DataclassT
 
-
-try:
-    import ujson as json
-except ImportError:
-    import json
+import json
 
 
 NOT_REQUIRED = "_NOTREQ"
@@ -54,6 +52,7 @@ KEY_AS_UUID4 = "_UUID4KEY"
 EXACT_KEY = lambda key: f"_EXACT:{key}"
 UNDEFINED_DEFAULT_VALUE = NOT_REQUIRED
 SET_AFTER_INIT = "_SET_AFTER_INIT"
+T_Model = TypeVar("T_Model")
 
 
 class KeyNotFound(Exception):
@@ -80,7 +79,7 @@ class DBModel:
         file_path: str = None,
         allow_invalid_values: bool = None,
         dump_on_error: bool = None
-    ):
+    ) -> "_DataclassT":
         def wrapper(cls):
             nonlocal file_path
             if file_path is None:
@@ -169,7 +168,7 @@ class Column:
         """ Cast value to required type if is not. """
         if value == NOT_REQUIRED or value is None:
             value = self.type_() if self.default == UNDEFINED_DEFAULT_VALUE else self.default
-
+            
         elif not isinstance(value, self.type_):
             value = self.type_(value)
 
@@ -180,7 +179,7 @@ class Column:
         return isinstance(value, self.type_)
 
 
-class Database:
+class Database(Generic[T_Model]):
     """
     Database must be initialized from DBModel.
     Each database contains ONLY ONE column, name and it's file path.
@@ -197,8 +196,8 @@ class Database:
             return None
         return Database.register.get(name)
 
-    def __init__(self, model: DBModel):
-        self.__model: DBModel = model.__dbmodel__
+    def __init__(self, model: T_Model):
+        self.__model: T_Model = model.__dbmodel__
         self.name = self.__model.name
         self.filepath = self.__model.file_path
         self.key_provider = self.__model.key_provider
@@ -231,12 +230,6 @@ class Database:
 
             column = Column(field_name, field_type, default_value)
             self.columns[field_name] = column
-        
-        # if self.key_provider.startswith("_EXACT:"):
-        #     try:
-        #         self.get(parse_key_provider(self.key_provider, None))
-        #     except KeyNotFound:
-        #         self.insert(self.__model())
             
     def __ensure_db_file(self) -> None:
         """ Check and create blank DB file if not exists. """
@@ -261,7 +254,7 @@ class Database:
         """ Get and return database's file content as dict. """
         return self.filepath.get_json_content()
 
-    def __save_model(self, model: DBModel, db_key: str = None) -> str:
+    def __save_model(self, model: T_Model, db_key: str = None) -> str:
         """
         Write entry to database. If key is not provided,
         new entry will be created with provided key.
@@ -320,7 +313,7 @@ class Database:
             
         return changes
 
-    def insert(self, data: DBModel) -> str:
+    def insert(self, data: T_Model) -> str:
         """ Insert new entry to database. Returns key. """
         return self.__save_model(data)
 
@@ -346,14 +339,14 @@ class Database:
                 Log.error(f"(DB:{self.name}) Cannot change value of {key_name} (key not found)")
                 continue
 
-            if iter_append and isinstance(value, Iterable):
+            if iter_append:
                 current_data = getattr(model_object, key_name)
                 if isinstance(current_data, list):
                     value = current_data + [value]
                 if isinstance(current_data, dict):
                     value = current_data.update(value)
 
-            if iter_pop and isinstance(value, Iterable) or isinstance(value, str):
+            if iter_pop:
                 current_data = getattr(model_object, key_name)
                 if isinstance(current_data, list):
                     if value in current_data:
@@ -381,7 +374,7 @@ class Database:
         db_content.pop(key)
         self.filepath.save_json_content(db_content)
 
-    def get(self, key: str) -> DBModel:
+    def get(self, key: str) -> T_Model:
         """
         Get object from database by it's key.
         Raises KeyNotFound error if key is invalid.
@@ -439,7 +432,7 @@ class Database:
         self.__save_model(model, key)
         return True
 
-    def get_all_models(self) -> List[DBModel]:
+    def get_all_models(self) -> List[T_Model]:
         """ Get all models saved in database. """
         objects = []
         db_content = self.__get_db_content()

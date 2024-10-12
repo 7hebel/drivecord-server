@@ -219,6 +219,13 @@ async def initialize_guild(guild: discord.Guild) -> None:
 
     await DriveGuild.init(guild)
 
+    for member_id in guild._members.keys():
+        user = accounts.User.get_by_uid(member_id)
+        if user is None:
+            continue
+        
+        user.assign_instance(guild.id)
+
     Log.info(f"{guild.name} initialization: Created roles and channels.")
     Log.info(f"{guild.name} Finished initialization process.")
 

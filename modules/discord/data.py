@@ -8,6 +8,7 @@ from modules import database
 from modules import limits
 from modules import errors
 
+from dataclasses import dataclass
 from discord.ext import commands
 from collections import deque
 import discord
@@ -17,6 +18,29 @@ import base64
 import json
 import io
 import os
+
+
+@dataclass
+class SendableFileData:
+    name: str
+    content: io.StringIO | io.BytesIO
+    is_zip: bool
+    
+    def to_discord_file(self) -> discord.File:
+        return discord.File(self.content, self.name)
+
+    def as_json_response(self) -> dict:
+        self.content.seek(0)
+        content = self.content.read()
+        
+        if self.is_zip:
+            content = base64.b64encode(content).decode()
+        
+        return {
+            "name": self.name,
+            "content": content,
+            "is_zip": self.is_zip
+        }
 
 
 async def panic_guild_error(guild: discord.Guild, reason: str = "") -> None:
@@ -407,7 +431,7 @@ class DriveGuild:
         instance = DriveGuild._register.get(guild.id)
         if instance is not None:
             if isinstance(instance, asyncio.Task):
-                return await asyncio.wait_for(instance, None) 
+                return await instance
             return instance
         
         init_task = asyncio.create_task(DriveGuild.init(guild))
@@ -416,7 +440,6 @@ class DriveGuild:
         instance = await init_task
         DriveGuild._register[guild.id] = instance
         return instance
-
 
     @staticmethod
     async def init(guild: discord.Guild) -> "DriveGuild":
@@ -556,7 +579,7 @@ class DriveGuild:
         await self.log(f"Updated {member.name}'s permissions to: {str(new_perms)}")
 
     async def log(self, message: str) -> None:
-        Log.info(f"(innerLog at {self.guild.name}) {message}")
+        Log.info(f"(drive@{self.guild.name}) {message}")
         content = f"{get_time()} | `{message}`"
         await self.logs_channel.send(content)
 
@@ -646,8 +669,7 @@ class DriveGuild:
         if target_parent.has_object(name):
             return errors.NAME_IN_USE
 
-        new_dir = fs.FS_Dir(name, target_parent)
-        cwd.insert_dir(new_dir)
+        fs.FS_Dir(name, target_parent)
 
         base = target_parent.base_dir()
         await self.set_struct(base)
@@ -732,7 +754,7 @@ class DriveGuild:
 
         return await self._read_file(target)
 
-    async def pull_object(self, uid: int, path: str) -> discord.File | errors.T_Error:
+    async def pull_object(self, uid: int, path: str) -> SendableFileData | errors.T_Error:
         cwd, cwd_ok = await self.get_cwd(uid)
         if not cwd_ok:
             await self.log(f"{uid} failed to pull object {path} (cwd error)")
@@ -752,7 +774,7 @@ class DriveGuild:
             if len(content) > limits.DISCORD_FILE_SIZE_B:
                 return errors.FILE_TOO_BIG
 
-            return discord.File(io.StringIO(content), target.name)
+            return SendableFileData(target.name, io.StringIO(content), False)
         
         # Zip directory.
         zipfile_content = io.BytesIO()
@@ -767,8 +789,8 @@ class DriveGuild:
             zip_name = "home.zip"
             
         zipfile_content.seek(0)
-            
-        return discord.File(zipfile_content, zip_name)
+        
+        return SendableFileData(zip_name, zipfile_content, True)            
 
     async def write_file(self, uid: int, path: str, content: str, skip_encoding: bool = False, fixed_size: int = None) -> T_OpStatus:
         cwd, cwd_ok = await self.get_cwd(uid)
@@ -892,4 +914,3 @@ class DriveGuild:
         await self.log(f"{uid} Renamed object: {old_path} -> {new_name}")
         await self.set_struct(base)
         return True
-        

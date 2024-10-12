@@ -62,6 +62,9 @@ class _FS_Obj:
 
     def path_to(self) -> str:
         ...
+        
+    def api_export(self) -> dict:
+        ...
 
     def base_dir(self) -> "FS_Dir | _FS_Obj":
         if self.parent_dir is not None:
@@ -126,6 +129,14 @@ class FS_File(_FS_Obj):
         trace = t[::-1]
         path = "/".join(trace)
         return path
+    
+    def api_export(self) -> dict:
+        return {
+            "type": Tokens.TYPE_FILE,
+            "name": self.name,
+            "path": self.path_to(),
+            "size": self.size
+        }
 
 
 @dataclass
@@ -185,7 +196,24 @@ class FS_Dir(_FS_Obj):
             _buff = dir.draw_tree(_depth + 1, _buff)
 
         return _buff
-
+    
+    def api_export(self) -> dict:
+        this_data = {
+            "type": Tokens.TYPE_DIR,
+            "name": self.name,
+            "path": self.path_to(),
+            "files": [],
+            "dirs": [] 
+        }
+        
+        for file in self.files:
+            this_data["files"].append(file.api_export())
+            
+        for dir in self.dirs:
+            this_data["dirs"].append(dir.api_export())
+        
+        return this_data
+        
     def export(self) -> str:
         base = f"{Tokens.TYPE_DIR}:{self.name}{Tokens.END_OBJ}"
 

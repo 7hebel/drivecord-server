@@ -149,7 +149,7 @@ class BotConsoleCommands(commands.Cog):
     @commands.command(
         name="_recache",
         brief="[index: BucketNumber = 0]",
-        help="Displays cache value of a bucket with given index. (channel-id: tot_size_b).",
+        help="Recalculate cache for given bucket.",
         usage="Admin"
     )
     async def cmd_recache(self, ctx: commands.Context, index: int = 0) -> None:
@@ -318,7 +318,7 @@ class BotConsoleCommands(commands.Cog):
         target = cwd.move_to(rel_path)
 
         if target is None:
-            await ctx.reply(embed=build_error_message(f"cd {rel_path}", f"Target path doesn't exists: `{cwd.path_to()}{rel_path}`"))
+            await ctx.reply(embed=build_error_message(f"cd {rel_path}", f"Target path doesn't exist: `{cwd.path_to()}{rel_path}`"))
             return
 
         if isinstance(target, fs.FS_File):
@@ -435,11 +435,12 @@ class BotConsoleCommands(commands.Cog):
             return await ctx.reply(embed=perms.READ_PERMS_ERROR_EMBED)
 
         file = await drive_man.pull_object(ctx.author.id, path)
+
         if isinstance(file, errors.T_Error):
             await ctx.reply(embed=build_error_message(f"{ctx.invoked_with} {path}", f"Fail: `{file}`"))
             return
 
-        await ctx.reply(embed=build_output_message(f"{ctx.invoked_with} {path}", f"💾 Download `{path}`"), file=file, ephemeral=True)
+        await ctx.reply(embed=build_output_message(f"{ctx.invoked_with} {path}", f"💾 Download `{path}`"), file=file.to_discord_file(), ephemeral=True)
 
     @commands.command(
         name="push",

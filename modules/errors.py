@@ -2,6 +2,8 @@ T_Error = str
 
 # Accounts.
 ACCOUNT_ALREADY_REGISTERED = "Account already registered."
+INVALID_PASSWORD = "Invalid password."
+MAX_ACCESS_TOKENS = "Access tokens limit exceeded."
 
 # FileSystem.
 INVALID_NAME = "Invalid object's name."

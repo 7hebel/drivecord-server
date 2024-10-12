@@ -12,5 +12,5 @@ class _GuildPointers:
     admin_role: int
     
     
-guilds_ids_db = database.Database(_GuildPointers)
+guilds_ids_db = database.Database[_GuildPointers](_GuildPointers)
     

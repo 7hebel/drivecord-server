@@ -89,6 +89,8 @@ class Parser:
 # d1 = FS_File("d1.txt", dogs, _mem_addr, 52)
 # d2 = FS_File("d2.txt", dogs, _mem_addr, 86)
 
+# print(home.api_export())
+
 # for x in home.walk():
 #     print(x.name, x.path_to())
 # print(home.draw_tree())

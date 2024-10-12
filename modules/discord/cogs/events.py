@@ -48,6 +48,10 @@ class BotEvents(commands.Cog):
         if str(guild.id) in guilds_ids_db.get_all_keys():
             guilds_ids_db.delete(guild.id)
             
+        for user in accounts.users_db.get_all_models():
+            if guild.id in user.servers_ids:
+                user.remove_instance(guild.id)
+            
     @commands.Cog.listener()
     async def on_command_error(self, ctx: commands.Context, error) -> None:
         if not console.is_console_channel(ctx):
@@ -73,7 +77,11 @@ class BotEvents(commands.Cog):
                              f" Please use /register command to create new account. To interract with `{member.guild.name}` drive, ask administrator for permissions."
             )
             
-            await member.send(embed=welcome_embed)
+            return await member.send(embed=welcome_embed)
+            
+        user = accounts.User.get_by_uid(member.id)
+        user.assign_instance(member.guild.id)
+        Log.info(f"{member.name} joined instance {member.guild.name}")
             
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message) -> None:
@@ -87,15 +95,21 @@ class BotEvents(commands.Cog):
             await message.delete()
     
     @commands.Cog.listener()
+    async def on_member_remove(self, member: discord.Member) -> None:
+        user = accounts.User.get_by_uid(member.id)
+        if user is None:
+            return Log.warn(f"Not registered user: {member.name} left instance: {member.guild.name}")
+        
+        user.remove_instance(member.guild.id)
+    
+    @commands.Cog.listener()
     async def on_message_delete(self, message: discord.Message) -> None:
         if message.author.id != self.client.user.id:
             return
         
+        manager = await data.DriveGuild.get(message.channel.guild)
         if message.channel.id == manager.console_channel.id:
             return
-        
-        
-        manager = await data.DriveGuild.get(message.channel.guild)
         if message.id in manager.memory_manager._removed_messages:
             return
         
@@ -125,3 +139,9 @@ class BotEvents(commands.Cog):
    
 async def setup(client: discord.Client) -> None:
     await client.add_cog(BotEvents(client))
+    
+    for guild in client.guilds:
+        await data.DriveGuild.get(guild)
+        
+    Log.info("Initialized all guilds.")
+        

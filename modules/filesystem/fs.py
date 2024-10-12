@@ -6,7 +6,7 @@ import discord
 
 HOME_DIR = "~/"
 ILLEGAL_CHARS = "\\/:*?<>|\"~` "
-BLANK_FILE_CONTENT = "="
+BLANK_FILE_CONTENT = ""
 MAX_NAME_LEN = 256
 
 

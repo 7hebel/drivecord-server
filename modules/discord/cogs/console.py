@@ -469,7 +469,7 @@ class BotConsoleCommands(commands.Cog):
             if isinstance(create_status, errors.T_Error):
                 return await ctx.reply(embed=build_error_message(f"{ctx.invoked_with}", f"Create-Fail: `{create_status}` ({name})"))
 
-            write_status = await drive_man.write_file(ctx.author.id, name, content, skip_encoding=True, fixed_size=file.size)
+            write_status = await drive_man.write_file(ctx.author.id, name, content, skip_encoding=True)
             if isinstance(write_status, errors.T_Error):
                 return await ctx.reply(embed=build_error_message(f"{ctx.invoked_with}", f"Write-Fail: `{write_status}` ({name})"))
 
